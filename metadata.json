@@ -1,0 +1,5 @@
+{
+  "name": "Calorie Balance Tracker",
+  "description": "A web application to track daily calorie intake versus expenditure. Users can log meals via text or image uploads, set their daily activity level, and visualize their calorie balance over time with interactive charts.",
+  "requestFramePermissions": []
+}
