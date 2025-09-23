@@ -5,7 +5,7 @@ import CalorieLogForm from './CalorieLogForm';
 import ActivityModal from './ActivityModal';
 import DailyChart from './DailyChart';
 import HistoryChart from './HistoryChart';
-import { FlameIcon, PlateIcon, LogoutIcon } from './icons';
+import { FlameIcon, PlateIcon, LogoutIcon, TrashIcon } from './icons';
 
 interface DashboardProps {
   userProfile: UserProfile;
@@ -65,6 +65,23 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     };
     setLogs(prevLogs => ({ ...prevLogs, [todayStr]: updatedLog }));
   };
+  
+  const handleDeleteMeal = (mealId: string) => {
+    const mealToDelete = todayLog.foodEntries.find(entry => entry.id === mealId);
+    if (!mealToDelete) return;
+
+    const updatedFoodEntries = todayLog.foodEntries.filter(entry => entry.id !== mealId);
+    const updatedCaloriesConsumed = todayLog.caloriesConsumed - mealToDelete.calories;
+
+    const updatedLog: DailyLog = {
+      ...todayLog,
+      caloriesConsumed: updatedCaloriesConsumed,
+      foodEntries: updatedFoodEntries,
+    };
+
+    setLogs(prevLogs => ({ ...prevLogs, [todayStr]: updatedLog }));
+  };
+
 
   const getChartData = () => {
     const allLogs = Object.values(logs).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -125,8 +142,17 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
               <ul className="space-y-4">
                 {todayLog.foodEntries.map(entry => (
                   <li key={entry.id} className="flex justify-between items-center bg-background p-3 rounded-md">
-                    <span className="flex-1 pr-4 truncate">{entry.description}</span>
-                    <span className="font-semibold text-accent">{entry.calories.toLocaleString()} kcal</span>
+                    <span className="flex-1 pr-4 truncate" title={entry.description}>{entry.description}</span>
+                    <div className="flex items-center space-x-3">
+                      <span className="font-semibold text-accent">{entry.calories.toLocaleString()} kcal</span>
+                      <button 
+                        onClick={() => handleDeleteMeal(entry.id)} 
+                        className="text-text-secondary hover:text-danger transition-colors"
+                        aria-label={`Delete entry for ${entry.description}`}
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
