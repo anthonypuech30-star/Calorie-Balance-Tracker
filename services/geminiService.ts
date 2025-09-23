@@ -1,12 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
+// This function now encapsulates the API key check and AI client initialization.
+// It will be called only when needed, preventing the app from crashing on startup.
+const getAiClient = (): GoogleGenAI => {
+    const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
 
-if (!apiKey) {
-  throw new Error("API_KEY environment variable is not set");
+    if (!apiKey) {
+      // This error will be thrown during an API call, not at module load time.
+      // The UI component's try/catch block will handle this gracefully.
+      throw new Error("The API Key is missing. The application is not configured to use the AI service.");
+    }
+
+    return new GoogleGenAI({ apiKey });
 }
-
-const ai = new GoogleGenAI({ apiKey });
 
 const responseSchema = {
     type: Type.OBJECT,
@@ -90,6 +96,7 @@ const parseAndValidateResponse = (responseText: string): CalorieEstimation => {
 
 export const getCaloriesFromText = async (description: string): Promise<CalorieEstimation> => {
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: description,
@@ -102,12 +109,13 @@ export const getCaloriesFromText = async (description: string): Promise<CalorieE
     return parseAndValidateResponse(response.text);
   } catch (error) {
     console.error("Error fetching calories from text:", error);
-    throw new Error("Failed to estimate calories from text.");
+    throw error;
   }
 };
 
 export const getCaloriesFromImage = async (imageFile: File): Promise<CalorieEstimation> => {
   try {
+    const ai = getAiClient();
     const imagePart = await fileToGenerativePart(imageFile);
     
     const response = await ai.models.generateContent({
@@ -123,6 +131,6 @@ export const getCaloriesFromImage = async (imageFile: File): Promise<CalorieEsti
     return parseAndValidateResponse(response.text);
   } catch (error) {
     console.error("Error fetching calories from image:", error);
-    throw new Error("Failed to estimate calories from image.");
+    throw error;
   }
 };
