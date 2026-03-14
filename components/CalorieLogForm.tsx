@@ -3,7 +3,7 @@ import { getCaloriesFromText, getCaloriesFromImage, CalorieEstimation } from '..
 import { LoadingSpinner } from './icons';
 
 interface CalorieLogFormProps {
-  onLog: (description: string, calories: number) => void;
+  onLog: (description: string, calories: number, protein: number, carbs: number, fat: number) => void;
 }
 
 const CalorieLogForm: React.FC<CalorieLogFormProps> = ({ onLog }) => {
@@ -76,7 +76,13 @@ const CalorieLogForm: React.FC<CalorieLogFormProps> = ({ onLog }) => {
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     if (editedData && editedData.description && editedData.totalCalories > 0) {
-      onLog(editedData.description, editedData.totalCalories);
+      onLog(
+        editedData.description, 
+        editedData.totalCalories,
+        editedData.totalProtein,
+        editedData.totalCarbs,
+        editedData.totalFat
+      );
       resetForm();
     } else {
       setError("Description cannot be empty and calories must be greater than zero.");
@@ -91,7 +97,12 @@ const CalorieLogForm: React.FC<CalorieLogFormProps> = ({ onLog }) => {
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setEditedData(prev => prev ? { ...prev, [name]: name === 'totalCalories' ? parseInt(value, 10) || 0 : value } : null);
+    setEditedData(prev => prev ? { 
+      ...prev, 
+      [name]: (name === 'totalCalories' || name === 'totalProtein' || name === 'totalCarbs' || name === 'totalFat') 
+        ? parseFloat(value) || 0 
+        : value 
+    } : null);
   };
   
   if (confirmationData && editedData) {
@@ -105,13 +116,20 @@ const CalorieLogForm: React.FC<CalorieLogFormProps> = ({ onLog }) => {
           </div>
         )}
         <div className="mb-4 bg-background p-4 rounded-md border border-border">
-            <h4 className="text-md font-semibold text-text-secondary mb-2">AI's Calorie Breakdown:</h4>
+            <h4 className="text-md font-semibold text-text-secondary mb-2">AI's Nutritional Breakdown:</h4>
             {confirmationData.breakdown.length > 0 ? (
                 <ul className="space-y-2 text-sm">
                     {confirmationData.breakdown.map((item, index) => (
-                        <li key={index} className="flex justify-between items-center">
-                            <span className="text-text-primary">{item.item}</span>
-                            <span className="font-mono text-text-secondary">{item.calories.toLocaleString()} kcal</span>
+                        <li key={index} className="flex flex-col border-b border-border/50 pb-2 last:border-0">
+                            <div className="flex justify-between items-center">
+                                <span className="text-text-primary font-medium">{item.item}</span>
+                                <span className="font-mono text-accent">{item.calories.toLocaleString()} kcal</span>
+                            </div>
+                            <div className="flex space-x-4 text-[10px] text-text-secondary uppercase tracking-wider mt-1">
+                                <span>P: {item.protein}g</span>
+                                <span>C: {item.carbs}g</span>
+                                <span>F: {item.fat}g</span>
+                            </div>
                         </li>
                     ))}
                 </ul>
@@ -121,26 +139,61 @@ const CalorieLogForm: React.FC<CalorieLogFormProps> = ({ onLog }) => {
         </div>
         <form onSubmit={handleConfirm} className="space-y-4">
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Description (Editable)</label>
+            <label htmlFor="description" className="block text-sm font-medium text-text-secondary mb-1">Description</label>
             <textarea
               id="description"
               name="description"
               value={editedData.description}
               onChange={handleEditChange}
               className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
-              rows={3}
+              rows={2}
             />
           </div>
-          <div>
-            <label htmlFor="totalCalories" className="block text-sm font-medium text-text-secondary mb-1">Total Calories (kcal - Editable)</label>
-            <input
-              id="totalCalories"
-              name="totalCalories"
-              type="number"
-              value={editedData.totalCalories}
-              onChange={handleEditChange}
-              className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+                <label htmlFor="totalCalories" className="block text-sm font-medium text-text-secondary mb-1">Calories (kcal)</label>
+                <input
+                id="totalCalories"
+                name="totalCalories"
+                type="number"
+                value={editedData.totalCalories}
+                onChange={handleEditChange}
+                className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
+                />
+            </div>
+            <div>
+                <label htmlFor="totalProtein" className="block text-sm font-medium text-text-secondary mb-1">Protein (g)</label>
+                <input
+                id="totalProtein"
+                name="totalProtein"
+                type="number"
+                value={editedData.totalProtein}
+                onChange={handleEditChange}
+                className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
+                />
+            </div>
+            <div>
+                <label htmlFor="totalCarbs" className="block text-sm font-medium text-text-secondary mb-1">Carbs (g)</label>
+                <input
+                id="totalCarbs"
+                name="totalCarbs"
+                type="number"
+                value={editedData.totalCarbs}
+                onChange={handleEditChange}
+                className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
+                />
+            </div>
+            <div>
+                <label htmlFor="totalFat" className="block text-sm font-medium text-text-secondary mb-1">Fat (g)</label>
+                <input
+                id="totalFat"
+                name="totalFat"
+                type="number"
+                value={editedData.totalFat}
+                onChange={handleEditChange}
+                className="w-full p-3 bg-background rounded-md border border-border focus:ring-2 focus:ring-primary focus:outline-none transition"
+                />
+            </div>
           </div>
           <div className="flex justify-end space-x-4 pt-2">
             <button

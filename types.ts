@@ -11,20 +11,17 @@ export interface FoodLog {
   id: string;
   description: string;
   calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
   timestamp: number;
 }
 
 export interface DailyLog {
   date: string; // YYYY-MM-DD
   caloriesConsumed: number;
-  caloriesBurned: number | null;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
   foodEntries: FoodLog[];
-}
-
-export enum ActivityLevel {
-  Sedentary = 'Sedentary',
-  LightlyActive = 'LightlyActive',
-  ModeratelyActive = 'ModeratelyActive',
-  VeryActive = 'VeryActive',
-  ExtraActive = 'ExtraActive',
 }

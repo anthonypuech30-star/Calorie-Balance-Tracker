@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { UserProfile, DailyLog, FoodLog } from '../types';
 import useLocalStorage from '../hooks/useLocalStorage';
 import CalorieLogForm from './CalorieLogForm';
-import ActivityModal from './ActivityModal';
 import DailyChart from './DailyChart';
 import HistoryChart from './HistoryChart';
-import { FlameIcon, PlateIcon, LogoutIcon, TrashIcon } from './icons';
+import { PlateIcon, LogoutIcon, TrashIcon } from './icons';
 
 interface DashboardProps {
   userProfile: UserProfile;
@@ -16,7 +15,6 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
   const [logs, setLogs] = useLocalStorage<Record<string, DailyLog>>('calorieTrackerLogs', {});
-  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   const todayStr = getTodayDateString();
@@ -25,57 +23,48 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     return logs[todayStr] || {
       date: todayStr,
       caloriesConsumed: 0,
-      caloriesBurned: null,
+      totalProtein: 0,
+      totalCarbs: 0,
+      totalFat: 0,
       foodEntries: [],
     };
   }, [logs, todayStr]);
   
-  const historyLogs = useMemo(() => {
-      return Object.values(logs).filter(log => log.date !== todayStr);
-  }, [logs, todayStr]);
-
-  useEffect(() => {
-    // Prompt for activity if not set for the day
-    if (todayLog.caloriesBurned === null) {
-      setIsActivityModalOpen(true);
-    }
-  }, [todayLog.caloriesBurned]);
-  
-  const handleLogMeal = (description: string, calories: number) => {
+  const handleLogMeal = (description: string, calories: number, protein: number, carbs: number, fat: number) => {
     const newLogEntry: FoodLog = {
       id: crypto.randomUUID(),
       description,
       calories,
+      protein,
+      carbs,
+      fat,
       timestamp: Date.now(),
     };
     
     const updatedLog: DailyLog = {
       ...todayLog,
       caloriesConsumed: todayLog.caloriesConsumed + calories,
+      totalProtein: todayLog.totalProtein + protein,
+      totalCarbs: todayLog.totalCarbs + carbs,
+      totalFat: todayLog.totalFat + fat,
       foodEntries: [newLogEntry, ...todayLog.foodEntries],
     };
     
     setLogs(prevLogs => ({ ...prevLogs, [todayStr]: updatedLog }));
   };
 
-  const handleSaveActivity = (caloriesBurned: number) => {
-    const updatedLog: DailyLog = {
-      ...todayLog,
-      caloriesBurned,
-    };
-    setLogs(prevLogs => ({ ...prevLogs, [todayStr]: updatedLog }));
-  };
-  
   const handleDeleteMeal = (mealId: string) => {
     const mealToDelete = todayLog.foodEntries.find(entry => entry.id === mealId);
     if (!mealToDelete) return;
 
     const updatedFoodEntries = todayLog.foodEntries.filter(entry => entry.id !== mealId);
-    const updatedCaloriesConsumed = todayLog.caloriesConsumed - mealToDelete.calories;
-
+    
     const updatedLog: DailyLog = {
       ...todayLog,
-      caloriesConsumed: updatedCaloriesConsumed,
+      caloriesConsumed: todayLog.caloriesConsumed - mealToDelete.calories,
+      totalProtein: todayLog.totalProtein - mealToDelete.protein,
+      totalCarbs: todayLog.totalCarbs - mealToDelete.carbs,
+      totalFat: todayLog.totalFat - mealToDelete.fat,
       foodEntries: updatedFoodEntries,
     };
 
@@ -84,9 +73,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
 
 
   const getChartData = () => {
-    const allLogs = Object.values(logs).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    if (view === 'weekly') return allLogs.slice(0, 7);
-    if (view === 'monthly') return allLogs.slice(0, 30);
+    const allLogs = Object.values(logs).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    if (view === 'weekly') return allLogs.slice(-7);
+    if (view === 'monthly') return allLogs.slice(-30);
     return [];
   };
 
@@ -94,46 +83,52 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary">Welcome, {userProfile.name}!</h1>
-          <p className="text-text-secondary">Here's your calorie balance summary.</p>
+          <h1 className="text-3xl font-bold text-text-primary">Food Tracker</h1>
+          <p className="text-text-secondary">Track your calories and macros instantly.</p>
         </div>
-        <button onClick={onLogout} className="flex items-center space-x-2 text-sm bg-surface px-3 py-2 rounded-lg hover:bg-border transition">
-          <LogoutIcon className="w-5 h-5" />
-          <span>Sign Out</span>
-        </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg">
+      {/* Mobile Log Form - Top of page on mobile */}
+      <div className="lg:hidden">
+        <CalorieLogForm onLog={handleLogMeal} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg border-l-4 border-accent">
           <div className="p-3 bg-accent/20 rounded-full">
             <PlateIcon className="w-8 h-8 text-accent" />
           </div>
           <div>
-            <p className="text-text-secondary">Consumed Today</p>
-            <p className="text-2xl font-bold">{todayLog.caloriesConsumed.toLocaleString()} kcal</p>
+            <p className="text-text-secondary text-xs uppercase tracking-wider">Calories</p>
+            <p className="text-2xl font-bold">{todayLog.caloriesConsumed.toLocaleString()} <span className="text-sm font-normal text-text-secondary">kcal</span></p>
           </div>
         </div>
-        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg">
-          <div className="p-3 bg-primary/20 rounded-full">
-            <FlameIcon className="w-8 h-8 text-primary" />
-          </div>
+        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg border-l-4 border-primary">
           <div>
-            <p className="text-text-secondary">Burned Today</p>
-            {todayLog.caloriesBurned !== null ? (
-              <p className="text-2xl font-bold">{todayLog.caloriesBurned.toLocaleString()} kcal</p>
-            ) : (
-              <p className="text-sm text-text-secondary">Set activity level</p>
-            )}
+            <p className="text-text-secondary text-xs uppercase tracking-wider">Protein</p>
+            <p className="text-2xl font-bold">{Math.round(todayLog.totalProtein)} <span className="text-sm font-normal text-text-secondary">g</span></p>
           </div>
         </div>
-         <button onClick={() => setIsActivityModalOpen(true)} className="bg-secondary text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:opacity-90 transition h-full text-lg">
-            Update Activity Level
-          </button>
+        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg border-l-4 border-secondary">
+          <div>
+            <p className="text-text-secondary text-xs uppercase tracking-wider">Carbs</p>
+            <p className="text-2xl font-bold">{Math.round(todayLog.totalCarbs)} <span className="text-sm font-normal text-text-secondary">g</span></p>
+          </div>
+        </div>
+        <div className="bg-surface rounded-lg p-6 flex items-center space-x-4 shadow-lg border-l-4 border-danger">
+          <div>
+            <p className="text-text-secondary text-xs uppercase tracking-wider">Fat</p>
+            <p className="text-2xl font-bold">{Math.round(todayLog.totalFat)} <span className="text-sm font-normal text-text-secondary">g</span></p>
+          </div>
+        </div>
       </div>
 
       <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <CalorieLogForm onLog={handleLogMeal} />
+          {/* Desktop Log Form - Only visible on large screens */}
+          <div className="hidden lg:block">
+            <CalorieLogForm onLog={handleLogMeal} />
+          </div>
           <div className="bg-surface p-6 rounded-lg shadow-lg max-h-96 overflow-y-auto">
             <h3 className="text-xl font-bold mb-4">Today's Food Log</h3>
             {todayLog.foodEntries.length === 0 ? (
@@ -141,17 +136,24 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
             ) : (
               <ul className="space-y-4">
                 {todayLog.foodEntries.map(entry => (
-                  <li key={entry.id} className="flex justify-between items-center bg-background p-3 rounded-md">
-                    <span className="flex-1 pr-4 truncate" title={entry.description}>{entry.description}</span>
-                    <div className="flex items-center space-x-3">
-                      <span className="font-semibold text-accent">{entry.calories.toLocaleString()} kcal</span>
-                      <button 
-                        onClick={() => handleDeleteMeal(entry.id)} 
-                        className="text-text-secondary hover:text-danger transition-colors"
-                        aria-label={`Delete entry for ${entry.description}`}
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                  <li key={entry.id} className="flex flex-col bg-background p-3 rounded-md border border-border/50">
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="flex-1 pr-4 truncate font-medium" title={entry.description}>{entry.description}</span>
+                        <button 
+                            onClick={() => handleDeleteMeal(entry.id)} 
+                            className="text-text-secondary hover:text-danger transition-colors"
+                            aria-label={`Delete entry for ${entry.description}`}
+                        >
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <div className="flex space-x-3 text-[10px] text-text-secondary uppercase">
+                            <span>P: {Math.round(entry.protein)}g</span>
+                            <span>C: {Math.round(entry.carbs)}g</span>
+                            <span>F: {Math.round(entry.fat)}g</span>
+                        </div>
+                        <span className="font-semibold text-accent text-sm">{entry.calories.toLocaleString()} kcal</span>
                     </div>
                   </li>
                 ))}
@@ -162,22 +164,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userProfile, onLogout }) => {
         <div className="lg:col-span-2">
            <div className="bg-surface rounded-lg p-4 shadow-lg">
                 <div className="flex justify-center border-b border-border mb-4">
-                    <button onClick={() => setView('daily')} className={`px-4 py-2 font-semibold ${view === 'daily' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Daily</button>
-                    <button onClick={() => setView('weekly')} className={`px-4 py-2 font-semibold ${view === 'weekly' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Weekly</button>
-                    <button onClick={() => setView('monthly')} className={`px-4 py-2 font-semibold ${view === 'monthly' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Monthly</button>
+                    <button onClick={() => setView('daily')} className={`px-4 py-2 font-semibold ${view === 'daily' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Daily Macros</button>
+                    <button onClick={() => setView('weekly')} className={`px-4 py-2 font-semibold ${view === 'weekly' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Weekly History</button>
+                    <button onClick={() => setView('monthly')} className={`px-4 py-2 font-semibold ${view === 'monthly' ? 'text-primary border-b-2 border-primary' : 'text-text-secondary'}`}>Monthly History</button>
                 </div>
                 {view === 'daily' ? <DailyChart log={todayLog} /> : <HistoryChart data={getChartData()} />}
            </div>
         </div>
       </main>
-
-      {isActivityModalOpen && (
-        <ActivityModal
-          userProfile={userProfile}
-          onClose={() => setIsActivityModalOpen(false)}
-          onSave={handleSaveActivity}
-        />
-      )}
     </div>
   );
 };

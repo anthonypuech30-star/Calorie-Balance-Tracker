@@ -23,25 +23,40 @@ const responseSchema = {
         },
         totalCalories: {
             type: Type.INTEGER,
-            description: "The estimated total calorie count for the meal as a single integer."
+            description: "The estimated total calorie count for the meal."
+        },
+        totalProtein: {
+            type: Type.NUMBER,
+            description: "The estimated total protein in grams."
+        },
+        totalCarbs: {
+            type: Type.NUMBER,
+            description: "The estimated total carbohydrates in grams."
+        },
+        totalFat: {
+            type: Type.NUMBER,
+            description: "The estimated total fat in grams."
         },
         breakdown: {
             type: Type.ARRAY,
-            description: "A breakdown of each food item identified and its estimated calories.",
+            description: "A breakdown of each food item identified and its estimated nutritional values.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     item: { type: Type.STRING, description: "The name of the individual food item." },
-                    calories: { type: Type.INTEGER, description: "The estimated calories for this specific item." }
+                    calories: { type: Type.INTEGER, description: "The estimated calories for this specific item." },
+                    protein: { type: Type.NUMBER, description: "Protein in grams." },
+                    carbs: { type: Type.NUMBER, description: "Carbs in grams." },
+                    fat: { type: Type.NUMBER, description: "Fat in grams." }
                 },
-                required: ["item", "calories"]
+                required: ["item", "calories", "protein", "carbs", "fat"]
             }
         }
     },
-    required: ["description", "totalCalories", "breakdown"]
+    required: ["description", "totalCalories", "totalProtein", "totalCarbs", "totalFat", "breakdown"]
 };
 
-const systemInstruction = `You are a nutrition expert. Analyze the user's meal from the text or image. Identify the food items, estimate their individual caloric content, and then calculate the total. Respond in a valid JSON format according to the provided schema. Provide a 'description' of the meal, the 'totalCalories', and a 'breakdown' array listing each item and its calories.`;
+const systemInstruction = `You are a nutrition expert. Analyze the user's meal from the text or image. Identify the food items, estimate their individual caloric content and macronutrients (protein, carbs, fat in grams), and then calculate the totals. Respond in a valid JSON format according to the provided schema. Provide a 'description' of the meal, the 'totalCalories', 'totalProtein', 'totalCarbs', 'totalFat', and a 'breakdown' array listing each item with its nutrition.`;
 
 function fileToGenerativePart(file: File) {
   return new Promise<{ inlineData: { data: string; mimeType: string; } }>((resolve, reject) => {
@@ -66,11 +81,17 @@ function fileToGenerativePart(file: File) {
 export interface FoodItemBreakdown {
     item: string;
     calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
 }
 
 export interface CalorieEstimation {
     description: string;
     totalCalories: number;
+    totalProtein: number;
+    totalCarbs: number;
+    totalFat: number;
     breakdown: FoodItemBreakdown[];
 }
 
@@ -81,10 +102,19 @@ const parseAndValidateResponse = (responseText: string): CalorieEstimation => {
         const parsed = JSON.parse(sanitizedText);
 
         const isValidBreakdown = Array.isArray(parsed.breakdown) && parsed.breakdown.every(
-            (item: any) => typeof item.item === 'string' && typeof item.calories === 'number'
+            (item: any) => typeof item.item === 'string' && 
+                           typeof item.calories === 'number' &&
+                           typeof item.protein === 'number' &&
+                           typeof item.carbs === 'number' &&
+                           typeof item.fat === 'number'
         );
 
-        if (typeof parsed.description === 'string' && typeof parsed.totalCalories === 'number' && parsed.totalCalories >= 0 && isValidBreakdown) {
+        if (typeof parsed.description === 'string' && 
+            typeof parsed.totalCalories === 'number' && 
+            typeof parsed.totalProtein === 'number' &&
+            typeof parsed.totalCarbs === 'number' &&
+            typeof parsed.totalFat === 'number' &&
+            parsed.totalCalories >= 0 && isValidBreakdown) {
             return parsed;
         }
         throw new Error("Invalid response structure from API");
